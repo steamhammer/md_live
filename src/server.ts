@@ -2,11 +2,13 @@ import express, { Request, Response } from 'express';
 import { readdir, readFile } from 'fs/promises';
 import { join, relative, parse, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import Markdoc from '@markdoc/markdoc';
-import matter from 'gray-matter';
 import dotenv from 'dotenv';
 import chokidar from 'chokidar';
 import ejs from 'ejs';
+import { MarkdownParser } from './parsers/markdownParser.js';
+import { MarkdownRenderer } from './renderers/markdownRenderer.js';
+import { ContentHandler, ContentHandlerFactory } from './handlers/contentHandler.js';
+import type { ContentRoute } from './types/content.js';
 
 dotenv.config();
 
@@ -18,16 +20,20 @@ const PORT = process.env.PORT || 3000;
 const CONTENT_DIR = process.env.CONTENT_DIR || 'content';
 const TEMPLATES_DIR = join(__dirname, 'templates');
 
-// Store SSE clients
+// Store clients for server sent events (SSE)
 const sseClients = new Set<Response>();
 
-interface MarkdownRoute {
-  path: string;
-  filePath: string;
-}
+// Initialize content handler factory
+const handlerFactory = new ContentHandlerFactory();
 
-async function getAllMarkdownFiles(dir: string, baseDir: string = dir): Promise<MarkdownRoute[]> {
-  const routes: MarkdownRoute[] = [];
+// Register markdown handler
+const markdownParser = new MarkdownParser();
+const markdownRenderer = new MarkdownRenderer(TEMPLATES_DIR);
+const markdownHandler = new ContentHandler(markdownParser, markdownRenderer);
+handlerFactory.register('md', markdownHandler);
+
+async function getAllMarkdownFiles(dir: string, baseDir: string = dir): Promise<ContentRoute[]> {
+  const routes: ContentRoute[] = [];
 
   try {
     const entries = await readdir(dir, { withFileTypes: true });
@@ -60,21 +66,6 @@ async function getAllMarkdownFiles(dir: string, baseDir: string = dir): Promise<
   return routes;
 }
 
-async function convertMarkdownToHtml(markdown: string, frontmatter: any, includeLiveReload = false): Promise<string> {
-  const ast = Markdoc.parse(markdown);
-  const content = Markdoc.transform(ast);
-  const html = Markdoc.renderers.html(content);
-
-  const title = frontmatter.title || 'Document';
-
-  const templatePath = join(TEMPLATES_DIR, 'document.ejs');
-  return ejs.renderFile(templatePath, {
-    title,
-    content: html,
-    liveReload: includeLiveReload,
-    lastUpdated: new Date().toISOString()
-  });
-}
 
 async function setupRoutes() {
   const routes = await getAllMarkdownFiles(CONTENT_DIR);
@@ -87,9 +78,19 @@ async function setupRoutes() {
     app.get(path, async (_req: Request, res: Response) => {
       try {
         const fileContent = await readFile(filePath, 'utf-8');
-        const parsed = matter(fileContent);
-        const { data: frontmatter, content: markdown } = parsed;
-        const html = await convertMarkdownToHtml(markdown, frontmatter, true);
+
+        // Get appropriate handler for markdown files
+        const handler = handlerFactory.get('md');
+
+        if (!handler) {
+          throw new Error('No handler registered for markdown files');
+        }
+
+        const html = await handler.process(fileContent, {
+          liveReload: true,
+          lastUpdated: new Date().toISOString()
+        });
+
         res.send(html);
       } catch (error) {
         console.error(`Error serving ${path}:`, error);
@@ -145,7 +146,7 @@ function notifyClients(filePath: string, routePath: string) {
   console.log(`Notified ${sseClients.size} client(s) about change: ${routePath}`);
 }
 
-function setupFileWatcher(routes: MarkdownRoute[]) {
+function setupFileWatcher(routes: ContentRoute[]) {
   // Create a map of file paths to route paths for quick lookup
   const fileToRouteMap = new Map<string, string>();
   routes.forEach(({ path, filePath }) => {

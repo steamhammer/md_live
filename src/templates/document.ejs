@@ -61,7 +61,6 @@
                 console.log('File changed:', data.path, 'at', data.timestamp);
                 if (window.location.pathname === data.path) {
                     window.location.reload();
-                    showNotification('Content updated, reloading...', data.timestamp);
                 }
             }
         };
@@ -71,7 +70,7 @@
             eventSource.close();
         };
 
-        // Clean up on page unload
+        // Clean up on page unload to prevent polluting memory with dead handlers
         window.addEventListener('beforeunload', () => {
             eventSource.close();
         });
