@@ -50,9 +50,27 @@
             max-width: 100%;
             height: auto;
         }
+
+        .sidebar {
+          position: absolute;
+          left: 0;
+          top: 0;
+          background-color: salmon;
+          height: 100vh;
+          width: 0;
+          display: none;
+          box-shadow: 3px 0 20px gray;
+        }
+        .sidebar.open {
+          display: block;
+          width: 300px;
+        }
     </style>
     <% if (liveReload) { %>
     <script>
+        const close = () => {
+          console.log('close');
+        }
         const eventSource = new EventSource('/events');
 
         eventSource.onmessage = (event) => {
@@ -78,6 +96,9 @@
     <% } %>
 </head>
 <body>
+    <div class='sidebar'>
+    SIDEBAR
+    </div>
     <span>Last updated: <%- lastUpdated %></span>
     <%- content %>
 </body>

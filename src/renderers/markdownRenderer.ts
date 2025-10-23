@@ -15,18 +15,9 @@ export class MarkdownRenderer implements ContentRenderer {
   }
 
   async render(parsed: ParsedContent, options: RenderOptions = {}): Promise<RenderedContent> {
-    // If metadata contains transformed Markdoc AST, use it
-    const transformed = parsed.metadata?.transformed;
-    let html: string;
-
-    if (transformed) {
-      html = Markdoc.renderers.html(transformed);
-    } else {
-      // Fallback: parse and transform if not already done
-      const ast = Markdoc.parse(parsed.content);
-      const content = Markdoc.transform(ast);
-      html = Markdoc.renderers.html(content);
-    }
+    const ast = Markdoc.parse(parsed.content);
+    const content = Markdoc.transform(ast);
+    const html = Markdoc.renderers.html(content);
 
     const title = parsed.frontmatter.title || 'Document';
     const templatePath = join(this.templatesDir, 'document.ejs');

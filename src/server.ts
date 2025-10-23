@@ -43,7 +43,7 @@ async function setupRoutes() {
       try {
         const fileContent = await readFile(filePath, 'utf-8');
 
-        // Get appropriate handler for markdown files
+        // TODO: use handlers based on file ext.
         const handler = handlerFactory.get('md');
 
         if (!handler) {
