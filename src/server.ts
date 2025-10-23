@@ -71,7 +71,8 @@ async function convertMarkdownToHtml(markdown: string, frontmatter: any, include
   return ejs.renderFile(templatePath, {
     title,
     content: html,
-    liveReload: includeLiveReload
+    liveReload: includeLiveReload,
+    lastUpdated: new Date().toISOString()
   });
 }
 
@@ -86,7 +87,8 @@ async function setupRoutes() {
     app.get(path, async (_req: Request, res: Response) => {
       try {
         const fileContent = await readFile(filePath, 'utf-8');
-        const { data: frontmatter, content: markdown } = matter(fileContent);
+        const parsed = matter(fileContent);
+        const { data: frontmatter, content: markdown } = parsed;
         const html = await convertMarkdownToHtml(markdown, frontmatter, true);
         res.send(html);
       } catch (error) {

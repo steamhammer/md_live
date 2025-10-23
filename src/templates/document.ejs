@@ -58,10 +58,10 @@
         eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.type === 'file-changed') {
-                console.log('File changed:', data.path);
-                // Reload the page if the current page's file was changed
+                console.log('File changed:', data.path, 'at', data.timestamp);
                 if (window.location.pathname === data.path) {
                     window.location.reload();
+                    showNotification('Content updated, reloading...', data.timestamp);
                 }
             }
         };
@@ -79,6 +79,7 @@
     <% } %>
 </head>
 <body>
+    <span>Last updated: <%- lastUpdated %></span>
     <%- content %>
 </body>
 </html>
