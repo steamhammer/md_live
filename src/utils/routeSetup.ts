@@ -18,6 +18,7 @@ export const setupRoutes = async (options: RouteSetupOptions): Promise<ContentRo
   const { app, contentDir, templatesDir, handlerFactory } = options;
 
   // Scan for markdown files
+  // TODO: add more supported file extensions
   const routes = await scanMarkdownFiles(contentDir);
 
   console.log(`Found ${routes.length} markdown file(s):`);
@@ -28,9 +29,11 @@ export const setupRoutes = async (options: RouteSetupOptions): Promise<ContentRo
 
     app.get(path, async (_req: Request, res: Response) => {
       try {
+        // TODO: consider limitations by filesize before reading
         const fileContent = await readFile(filePath, 'utf-8');
 
         // Get handler for markdown files
+        // TODO: support more filetypes
         const handler = handlerFactory.get('md');
 
         if (!handler) {
@@ -52,6 +55,7 @@ export const setupRoutes = async (options: RouteSetupOptions): Promise<ContentRo
   });
 
   // Set up root route (index page)
+  // TODO: extract to separate module when rich main page is needed
   app.get('/', async (_req: Request, res: Response) => {
     try {
       const templatePath = join(templatesDir, 'index.ejs');
