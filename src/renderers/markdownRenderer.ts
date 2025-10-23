@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export class MarkdownRenderer implements ContentRenderer {
-  private templatesDir: string;
+  private readonly templatesDir: string;
 
   constructor(templatesDir?: string) {
     this.templatesDir = templatesDir || join(__dirname, '..', 'templates');
