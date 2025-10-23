@@ -20,6 +20,7 @@ export interface ContentRenderer {
 export interface RenderOptions {
   liveReload?: boolean;
   lastUpdated?: string;
+  fileList?: ContentRoute[];
   [key: string]: any;
 }
 

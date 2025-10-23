@@ -52,18 +52,19 @@
         }
 
         .sidebar {
-          position: absolute;
+          position: fixed;
+          overflow: hidden;
           left: 0;
           top: 0;
-          background-color: salmon;
-          height: 100vh;
-          width: 0;
-          display: none;
-          box-shadow: 3px 0 20px gray;
-        }
-        .sidebar.open {
+          background-color: lightgray;
           display: block;
-          width: 300px;
+          width: 24px;
+          height: 24px;
+        }
+        .sidebar:hover {
+          width: 240px;
+          height: 100vh;
+          box-shadow: 3px 0 20px rgba(0,0,0,0.75);
         }
     </style>
     <% if (liveReload) { %>
@@ -96,9 +97,17 @@
     <% } %>
 </head>
 <body>
-    <div class='sidebar'>
-    SIDEBAR
+    <% if (fileList) { %>
+    <div class='sidebar open'>
+    <ul>
+     <% fileList.forEach(function(item){ %>
+       <li>
+         <a href="<%- item.path %>"><%- item.path %></a>
+       </li>
+     <% }); %>
+    </ul>
     </div>
+    <% } %>
     <span>Last updated: <%- lastUpdated %></span>
     <%- content %>
 </body>

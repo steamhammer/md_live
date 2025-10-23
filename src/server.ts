@@ -52,9 +52,11 @@ async function setupRoutes() {
 
         const html = await handler.process(fileContent, {
           liveReload: true,
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
+          fileList: routes
         });
 
+        // TODO: inject sidebar data: routes
         res.send(html);
       } catch (error) {
         console.error(`Error serving ${path}:`, error);
@@ -166,4 +168,4 @@ async function startServer() {
   }
 }
 
-startServer();
+void startServer();

@@ -19,12 +19,15 @@ export class MarkdownRenderer implements ContentRenderer {
     const content = Markdoc.transform(ast);
     const html = Markdoc.renderers.html(content);
 
+    const fileList = options.fileList;
+
     const title = parsed.frontmatter.title || 'Document';
     const templatePath = join(this.templatesDir, 'document.ejs');
 
     const renderedHtml = await ejs.renderFile(templatePath, {
       title,
       content: html,
+      fileList,
       liveReload: options.liveReload || false,
       lastUpdated: options.lastUpdated || new Date().toISOString()
     });
