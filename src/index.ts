@@ -16,3 +16,11 @@ export { MarkdownRenderer } from './renderers/markdownRenderer.js';
 
 // Export handlers
 export { ContentHandler, ContentHandlerFactory } from './handlers/contentHandler.js';
+
+// Export utilities
+export {
+  FileScanner,
+  scanMarkdownFiles,
+  scanContentFiles,
+  type FileScannerOptions
+} from './utils/fileScanner.js';

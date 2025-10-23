@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
-import { readdir, readFile } from 'fs/promises';
-import { join, relative, parse, dirname } from 'path';
+import { readFile } from 'fs/promises';
+import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import chokidar from 'chokidar';
@@ -8,6 +8,7 @@ import ejs from 'ejs';
 import { MarkdownParser } from './parsers/markdownParser.js';
 import { MarkdownRenderer } from './renderers/markdownRenderer.js';
 import { ContentHandler, ContentHandlerFactory } from './handlers/contentHandler.js';
+import { scanMarkdownFiles } from './utils/fileScanner.js';
 import type { ContentRoute } from './types/content.js';
 
 dotenv.config();
@@ -22,8 +23,6 @@ const TEMPLATES_DIR = join(__dirname, 'templates');
 
 // Store clients for server sent events (SSE)
 const sseClients = new Set<Response>();
-
-// Initialize content handler factory
 const handlerFactory = new ContentHandlerFactory();
 
 // Register markdown handler
@@ -32,43 +31,8 @@ const markdownRenderer = new MarkdownRenderer(TEMPLATES_DIR);
 const markdownHandler = new ContentHandler(markdownParser, markdownRenderer);
 handlerFactory.register('md', markdownHandler);
 
-async function getAllMarkdownFiles(dir: string, baseDir: string = dir): Promise<ContentRoute[]> {
-  const routes: ContentRoute[] = [];
-
-  try {
-    const entries = await readdir(dir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = join(dir, entry.name);
-
-      if (entry.isDirectory()) {
-        const subRoutes = await getAllMarkdownFiles(fullPath, baseDir);
-        routes.push(...subRoutes);
-      } else if (entry.isFile() && entry.name.endsWith('.md')) {
-        const relativePath = relative(baseDir, fullPath);
-        const parsedPath = parse(relativePath);
-
-        // Convert file path to route
-        // e.g., "react.md" -> "/react"
-        // e.g., "tutorials/intro.md" -> "/tutorials/intro"
-        const routePath = '/' + join(parsedPath.dir, parsedPath.name).replace(/\\/g, '/');
-
-        routes.push({
-          path: routePath,
-          filePath: fullPath
-        });
-      }
-    }
-  } catch (error) {
-    console.error(`Error reading directory ${dir}:`, error);
-  }
-
-  return routes;
-}
-
-
 async function setupRoutes() {
-  const routes = await getAllMarkdownFiles(CONTENT_DIR);
+  const routes = await scanMarkdownFiles(CONTENT_DIR);
 
   console.log(`Found ${routes.length} markdown file(s):`);
 
@@ -182,7 +146,7 @@ function setupFileWatcher(routes: ContentRoute[]) {
       }
     });
 
-  console.log(`\nWatching for changes in: ${CONTENT_DIR}`);
+  console.log(`\n--> Watching for changes in: ${CONTENT_DIR}`);
 
   return watcher;
 }
