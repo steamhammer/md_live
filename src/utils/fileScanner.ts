@@ -2,102 +2,82 @@ import { readdir } from 'fs/promises';
 import { join, relative, parse } from 'path';
 import type { ContentRoute } from '../types/content.js';
 
-export interface FileScannerOptions {
-  extensions: string[];
-  recursive?: boolean;
-  ignorePatterns?: RegExp[];
-}
+const matchesExtension = (fileName: string, extensions: string[]): boolean => {
+  const lowerFileName = fileName.toLowerCase();
+  return extensions.some(ext => {
+    const normalizedExt = (ext.startsWith('.') ? ext : `.${ext}`).toLowerCase();
+    return lowerFileName.endsWith(normalizedExt);
+  });
+};
 
-export class FileScanner {
-  private options: Required<FileScannerOptions>;
+const shouldIgnorePath = (path: string, patterns: RegExp[]): boolean => {
+  return patterns.some(pattern => pattern.test(path));
+};
 
-  constructor(options: FileScannerOptions) {
-    this.options = {
-      extensions: options.extensions,
-      recursive: options.recursive ?? true,
-      ignorePatterns: options.ignorePatterns ?? []
-    };
-  }
+const createRoute = (fullPath: string, baseDir: string): ContentRoute => {
+  const relativePath = relative(baseDir, fullPath);
+  const parsedPath = parse(relativePath);
 
-  async scan(dir: string, baseDir: string = dir): Promise<ContentRoute[]> {
+  // Convert file path to route
+  // e.g., "react.md" -> "/react"
+  // e.g., "tutorials/intro.md" -> "/tutorials/intro"
+  const routePath = '/' + join(parsedPath.dir, parsedPath.name).replace(/\\/g, '/');
+
+  return {
+    path: routePath,
+    filePath: fullPath
+  };
+};
+
+const scanDirectory = async (
+  dir: string,
+  extensions: string[],
+  ignorePatterns: RegExp[],
+  baseDir: string = dir
+): Promise<ContentRoute[]> => {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
     const routes: ContentRoute[] = [];
 
-    try {
-      const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
 
-      for (const entry of entries) {
-        const fullPath = join(dir, entry.name);
-
-        if (this.shouldIgnore(fullPath) ) {
-          continue;
-        }
-
-        if (entry.isDirectory() && this.options.recursive) {
-          const subRoutes = await this.scan(fullPath, baseDir);
-          routes.push(...subRoutes);
-        } else if (entry.isFile() && this.matchesExtension(entry.name)) {
-          const route = this.createRoute(fullPath, baseDir);
-          routes.push(route);
-        }
+      // Skip ignored paths
+      if (shouldIgnorePath(fullPath, ignorePatterns)) {
+        continue;
       }
-    } catch (error) {
-      console.error(`Error reding dir ${dir}:`, error);
+
+      if (entry.isDirectory()) {
+        // Recursively scan subdirectories
+        const subRoutes = await scanDirectory(fullPath, extensions, ignorePatterns, baseDir);
+        routes.push(...subRoutes);
+      } else if (entry.isFile() && matchesExtension(entry.name, extensions)) {
+        routes.push(createRoute(fullPath, baseDir));
+      }
     }
 
     return routes;
+  } catch (error) {
+    console.error(`Error reading directory ${dir}:`, error);
+    return [];
   }
+};
 
-  private matchesExtension(fileName: string): boolean {
-    const lowerFileName = fileName.toLowerCase();
-    return this.options.extensions.some(ext => {
-      const normalizedExt = (ext.startsWith('.') ? ext : `.${ext}`).toLowerCase();
-      return lowerFileName.endsWith(normalizedExt);
-    });
-  }
+export const scanFiles = async (
+  dir: string,
+  extensions: string[],
+  ignorePatterns: RegExp[] = [/(^|[\/\\])\../]
+): Promise<ContentRoute[]> => {
+  return scanDirectory(dir, extensions, ignorePatterns);
+};
 
-  private shouldIgnore(path: string): boolean {
-    return this.options.ignorePatterns.some(pattern => pattern.test(path));
-  }
+export const scanMarkdownFiles = async (dir: string): Promise<ContentRoute[]> => {
+  return scanFiles(dir, ['md'], [/(^|[\/\\])\../]);
+};
 
-  private createRoute(fullPath: string, baseDir: string): ContentRoute {
-    const relativePath = relative(baseDir, fullPath);
-    const parsedPath = parse(relativePath);
-
-    // Convert file path to route
-    // e.g., "react.md" -> "/react"
-    // e.g., "tutorials/intro.md" -> "/tutorials/intro"
-    const routePath = '/' + join(parsedPath.dir, parsedPath.name).replace(/\\/g, '/');
-
-    return {
-      path: routePath,
-      filePath: fullPath
-    };
-  }
-}
-
-
-export async function scanMarkdownFiles(dir: string): Promise<ContentRoute[]> {
-  const scanner = new FileScanner({
-    extensions: ['md'],
-    recursive: true,
-    ignorePatterns: [/(^|[\/\\])\../]  // Ignore dotfiles
-  });
-
-  return scanner.scan(dir);
-}
-
-/**
- * Convenience function to scan for multiple file types
- */
-export async function scanContentFiles(
+export const scanContentFiles = async (
   dir: string,
   extensions: string[]
-): Promise<ContentRoute[]> {
-  const scanner = new FileScanner({
-    extensions,
-    recursive: true,
-    ignorePatterns: [/(^|[\/\\])\../] // Ignore dotfiles
-  });
-
-  return scanner.scan(dir);
-}
+): Promise<ContentRoute[]> => {
+  return scanFiles(dir, extensions, [/(^|[\/\\])\../]);
+};
